@@ -1,8 +1,29 @@
+# A. Minification:
+#   1. Rename variables (DONE)
+#   2. Rename lists     (DONE)
+#   3. Rename functions
+#   4. Rename function arguments
+#   5. Remove comments
+
+# B. Block Tree Optimizations:
+#   1. Constant folding
+
+# C. Turbowarp's ID Optimization
+
+# D. Compress costumes:
+#   1. SVG - https://github.com/svg/svgo
+#       notes: don't enable remove xmlns
+#   2. PNG - (LOSSLESS) https://github.com/yumin-chen/png-optimizer
+#          - (LOSSY)    https://github.com/chrissimpkins/Crunch
+
+# E. Compress sounds:
+#   1. Convert WAV to MP3
+
 import argparse
 from pathlib import Path
 
 import humanize
-from packer import pack_project
+from packsb3 import pack_project
 
 argparser = argparse.ArgumentParser(
     prog="pksb3",

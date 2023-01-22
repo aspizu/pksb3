@@ -6,3 +6,12 @@ python sb3debug.py $1_out.sb3 $1_out.json
 
 stat --format "%s" $1.json
 stat --format "%s" $1_out.json
+
+
+abcdefghij
+klmnopqrst
+uvwxyz
+1234567890
+`-=[]\;',./
+!@#$%^&*()
+~_+{}|:"<>?
