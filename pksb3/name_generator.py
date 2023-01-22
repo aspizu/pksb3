@@ -1,14 +1,14 @@
 import string
 
 # FIXME: Change this to the entire unicode
-CHARSET = string.ascii_uppercase
+CHARSET = string.printable
 
 
 class NameGenerator:
     """Generate sequence of strings like: a, b, ..., az, aa, ab, ..."""
 
-    def __init__(self) -> None:
-        self.name = 0
+    def __init__(self, n: int = 0) -> None:
+        self.name = n
 
     def __next__(self) -> str:
         value = str(self)

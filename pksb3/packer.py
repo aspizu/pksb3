@@ -9,8 +9,8 @@ from rich import print  # type: ignore
 from schema import Block, Blocks, Input, Project, Sprite
 
 # A. Minification:
-#   1. Rename variables
-#   2. Rename lists
+#   1. Rename variables (DONE)
+#   2. Rename lists     (DONE)
 #   3. Rename functions
 #   4. Rename function arguments
 #   5. Remove comments
@@ -31,27 +31,42 @@ from schema import Block, Blocks, Input, Project, Sprite
 
 
 def visit_block_inputs(
-    blocks: Blocks, func: Callable[[str, Block, str, Input], None]
+    blocks: Blocks, *funcs: Callable[[str, Block, str, Input], None]
 ) -> None:
     for block_id, block in blocks.items():
         # scratch stores top-level variable/list reporters as lists instead of `Block`s
         if isinstance(block, list):
             continue
         for input_name, input in block["inputs"].items():
-            func(block_id, block, input_name, input)
+            for func in funcs:
+                func(block_id, block, input_name, input)
 
 
-def pack(sprite: Sprite, global_variable_names_: dict[str, str] | None = None):
+def pack(
+    sprite: Sprite,
+    global_variable_names_: dict[str, str] | None = None,
+    global_list_names_: dict[str, str] | None = None,
+):
     global_variable_names = global_variable_names_ or {}
-    # mapping variable id and new variable name
-    variable_name_generator = NameGenerator()
+    global_list_names = global_list_names_ or {}
+    # mapping old variable name and new variable name
+    variable_name_generator = NameGenerator(len(global_variable_names))
+    list_name_generator = NameGenerator()
     variable_names: dict[str, str] = {}
+    list_names: dict[str, str] = {}
 
     # scratch stores a mapping from variable ids to variable names and default values
-    for variable_id, variable in sprite["variables"].items():
+    for variable in sprite["variables"].values():
+        old_name = variable[0]
         new_name = next(variable_name_generator)
-        variable_names[variable_id] = new_name
-        sprite["variables"][variable_id] = (new_name, variable[1])
+        variable_names[old_name] = new_name
+        sprite["variables"][old_name] = (new_name, variable[1])
+
+    for list in sprite["lists"].values():
+        old_name = list[0]
+        new_name = next(list_name_generator)
+        list_names[old_name] = new_name
+        sprite["lists"][old_name] = (new_name, list[1])
 
     # variables reporters have the name and id both, update the name
     def rename_variable_reporters(
@@ -60,16 +75,35 @@ def pack(sprite: Sprite, global_variable_names_: dict[str, str] | None = None):
         if not (input[0] == 3 and input[1][0] == 12):
             return
         try:
-            new_name = variable_names[input[1][2]]
+            new_name = variable_names[input[1][1]]
         except KeyError:
-            new_name = global_variable_names[input[1][2]]
+            new_name = global_variable_names[input[1][1]]
         sprite["blocks"][block_id]["inputs"][input_name] = (
             3,
             (12, new_name, input[1][2]),
             input[2],
         )
 
-    visit_block_inputs(sprite["blocks"], rename_variable_reporters)
+    def rename_list_reporters(
+        block_id: str, block: Block, input_name: str, input: Input
+    ):
+        if not (input[0] == 3 and input[1][0] == 13):
+            return
+        try:
+            new_name = list_names[input[1][2]]
+        except KeyError:
+            new_name = global_list_names[input[1][2]]
+        sprite["blocks"][block_id]["inputs"][input_name] = (
+            3,
+            (13, new_name, input[1][2]),
+            input[2],
+        )
+
+    visit_block_inputs(
+        sprite["blocks"],
+        rename_variable_reporters,
+        rename_list_reporters,
+    )
 
     return variable_names
 
@@ -92,4 +126,5 @@ def pack_project(input: Path, output: Path) -> None:
             json.dump(
                 project,
                 TextIOWrapper(output_sb3.open("project.json", "w")),
+                separators=(",", ":"),  # i hate this
             )

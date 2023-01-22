@@ -1,6 +1,5 @@
 import argparse
 from pathlib import Path
-from zipfile import ZipFile
 
 import humanize
 from packer import pack_project
