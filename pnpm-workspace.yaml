@@ -1,0 +1,5 @@
+pmOnFail: warn
+allowBuilds:
+    lefthook: true
+minimumReleaseAgeExclude:
+    - oxlint-plugin-aspizuism@1.0.5

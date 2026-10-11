@@ -1,0 +1,4 @@
+dist/
+node_modules/
+*.sb3
+scratch/

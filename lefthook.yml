@@ -1,0 +1,17 @@
+glob_matcher: doublestar
+pre-push:
+    parallel: true
+    jobs:
+        - run: pnpm fmt:check
+          glob: "**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts,json,jsonc,json5,css,scss,less,html,vue,md,mdx,yaml,yml,toml,graphql,gql}"
+        - run: pnpm typecheck
+          glob:
+              - "**/*.{ts,tsx,mts,cts}"
+              - "**/tsconfig*.json"
+              - "package.json"
+              - "pnpm-lock.yaml"
+        - run: pnpm lint
+          glob:
+              - "**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"
+              - "package.json"
+              - "pnpm-lock.yaml"

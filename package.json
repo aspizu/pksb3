@@ -1,0 +1,41 @@
+{
+    "name": "pksb3",
+    "version": "1.0.0",
+    "description": "compress Scratch projects",
+    "keywords": [],
+    "license": "CC-BY-NC-ND-4.0",
+    "author": "aspizu <hi@aspiz.uk> (https://aspiz.uk)",
+    "type": "module",
+    "main": "index.js",
+    "scripts": {
+        "pksb3": "node src/index.ts",
+        "typecheck": "tsc --noEmit",
+        "fmt": "oxfmt",
+        "fmt:check": "oxfmt --check",
+        "lint": "oxlint",
+        "lint:fix": "oxlint --fix",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "dependencies": {
+        "ajv": "^8.20.0",
+        "better-ajv-errors": "^3.0.0",
+        "glob": "^13.0.6",
+        "jszip": "^3.10.2"
+    },
+    "devDependencies": {
+        "@types/node": "^26.6.5",
+        "lefthook": "^2.2.0",
+        "oxfmt": "^0.72.0",
+        "oxlint": "^1.87.0",
+        "oxlint-plugin-aspizuism": "1.0.5",
+        "oxlint-tsgolint": "^7.0.2003",
+        "typescript": "^7.0.2"
+    },
+    "devEngines": {
+        "packageManager": {
+            "name": "pnpm",
+            "version": "^12.5.1",
+            "onFail": "warn"
+        }
+    }
+}
