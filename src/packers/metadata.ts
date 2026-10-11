@@ -24,9 +24,6 @@ export class MetadataPacker implements IPacker {
                 delete target[key]
             }
         }
-        if (target.sounds !== undefined && target.sounds.length === 0) {
-            delete target.sounds
-        }
         delete target.comments
         for (const [id, block] of Object.entries(target.blocks)) {
             if (Array.isArray(block)) {

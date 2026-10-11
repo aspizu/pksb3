@@ -85,7 +85,7 @@ interface Sb3TargetBase {
     lists: Record<string, Sb3List>
     blocks: Record<string, Sb3Block | Sb3TopLevelPrimitive>
     costumes: Sb3Costume[]
-    sounds?: Sb3Sound[]
+    sounds: Sb3Sound[]
     broadcasts?: Record<string, string>
     comments?: Record<string, Sb3Comment>
     currentCostume?: number
