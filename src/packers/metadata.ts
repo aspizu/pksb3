@@ -50,9 +50,11 @@ export class MetadataPacker implements IPacker {
     private _removeUnusedFromBlock(block: Sb3Block): void {
         delete block.comment
         if (block.next === null) {
+            // This may cause Scratch to throw a benign error at runtime.
             delete block.next
         }
         if (block.parent === null) {
+            // This may cause Scratch to throw a benign error at runtime.
             delete block.parent
         }
         if (block.inputs !== undefined && Object.keys(block.inputs).length === 0) {
