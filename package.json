@@ -4,7 +4,11 @@
     "description": "compress Scratch projects",
     "keywords": [],
     "license": "CC-BY-NC-ND-4.0",
-    "author": "aspizu <hi@aspiz.uk> (https://aspiz.uk)",
+    "author": {
+        "name": "aspizu",
+        "email": "hi@aspiz.uk",
+        "url": "https://aspiz.uk"
+    },
     "type": "module",
     "main": "index.js",
     "scripts": {
