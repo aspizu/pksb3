@@ -1,4 +1,4 @@
-import type {Sb3Block, Sb3Project, Sb3Target} from "../sb3.ts"
+import type {Sb3Block, Sb3Costume, Sb3Project, Sb3Target} from "../sb3.ts"
 import type {IPacker} from "./index.ts"
 
 export class MetadataPacker implements IPacker {
@@ -26,12 +26,24 @@ export class MetadataPacker implements IPacker {
             }
         }
         delete target.comments
+        for (const costume of target.costumes) {
+            this._removeUnusedFromCostume(costume)
+        }
         for (const [id, block] of Object.entries(target.blocks)) {
-            if (Array.isArray(block)) {
+            const isFloatingReporter = Array.isArray(block)
+            const isFloatingBlock =
+                !isFloatingReporter && !block.topLevel && block.parent === undefined
+            if (isFloatingReporter || isFloatingBlock) {
                 delete target.blocks[id]
             } else {
                 this._removeUnusedFromBlock(block)
             }
+        }
+    }
+
+    private _removeUnusedFromCostume(costume: Sb3Costume): void {
+        if (costume.bitmapResolution === 2) {
+            delete costume.bitmapResolution
         }
     }
 
@@ -49,6 +61,8 @@ export class MetadataPacker implements IPacker {
         if (block.fields !== undefined && Object.keys(block.fields).length === 0) {
             delete block.fields
         }
+        delete block.x
+        delete block.y
     }
 }
 

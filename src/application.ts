@@ -49,12 +49,22 @@ export class Application {
 
     private _printDiff(before: string, after: string): void {
         for (const part of diffLines(before, after)) {
+            let prefix: string
+            let color: (text: string) => string
             if (part.added) {
-                process.stdout.write(pc.green(part.value))
+                prefix = "+"
+                color = pc.green
             } else if (part.removed) {
-                process.stdout.write(pc.red(part.value))
+                prefix = "-"
+                color = pc.red
             } else {
-                process.stdout.write(pc.dim(part.value))
+                prefix = " "
+                color = pc.dim
+            }
+            for (const line of part.value.split("\n")) {
+                if (line !== "") {
+                    process.stdout.write(color(prefix + line + "\n"))
+                }
             }
         }
     }
