@@ -41,9 +41,16 @@ export class Application {
             if (entry.dir || path === "project.json") continue
             out.file(path, await entry.async("nodebuffer"))
         }
-        await writeFile(
-            target,
-            await out.generateAsync({type: "nodebuffer", compression: "DEFLATE"}),
+        const inputBytes = (await readFile(input)).byteLength
+        const outputBytes = await out.generateAsync({
+            type: "nodebuffer",
+            compression: "DEFLATE",
+            compressionOptions: {level: 9},
+        })
+        await writeFile(target, outputBytes)
+        const ratio = (outputBytes.byteLength / inputBytes) * 100
+        console.log(
+            `${inputBytes} bytes -> ${outputBytes.byteLength} bytes (${ratio.toFixed(2)}%)`,
         )
     }
 
