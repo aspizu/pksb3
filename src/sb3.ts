@@ -90,6 +90,7 @@ interface Sb3TargetBase {
     comments?: Record<string, Sb3Comment>
     currentCostume?: number
     volume?: number
+    textToSpeechLanguage?: string | null
     layerOrder?: number
 }
 
