@@ -3,12 +3,13 @@ import type {IPacker} from "./index.ts"
 
 export class MetadataPacker implements IPacker {
     pack(project: Sb3Project): void {
-        project.meta.agent = "pksb3"
         this._removeUnused(project)
     }
 
     private _removeUnused(project: Sb3Project): void {
         delete project.extensions
+        delete project.meta.agent
+        delete project.meta.origin
         if (project.monitors !== undefined && project.monitors.length === 0) {
             delete project.monitors
         }
