@@ -70,7 +70,7 @@ export interface Sb3Block {
     next?: string | null
     parent?: string | null
     inputs?: Record<string, Sb3Input>
-    fields?: Record<string, unknown[]>
+    fields?: Record<string, Sb3Field>
     shadow?: boolean
     topLevel?: boolean
     x?: number
@@ -115,9 +115,28 @@ export interface Sb3Sprite extends Sb3TargetBase {
 
 export type Sb3Target = Sb3Stage | Sb3Sprite
 
+export type Sb3Field = [name: string, id?: string]
+
+export interface Sb3Monitor {
+    id: string
+    mode: string
+    opcode: string
+    params: Record<string, unknown>
+    spriteName: string | null
+    value: unknown
+    width: number
+    height: number
+    x: number
+    y: number
+    visible?: boolean
+    sliderMin?: number
+    sliderMax?: number
+    isDiscrete?: boolean
+}
+
 export interface Sb3Project {
     meta: Sb3Meta
     targets: Sb3Target[]
-    monitors?: Record<string, unknown>[]
+    monitors?: Sb3Monitor[]
     extensions?: string[]
 }

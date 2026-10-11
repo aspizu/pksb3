@@ -1,4 +1,4 @@
-import type {Sb3Block, Sb3Costume, Sb3Project, Sb3Target} from "../sb3.ts"
+import type {Sb3Block, Sb3Costume, Sb3Field, Sb3Project, Sb3Target} from "../sb3.ts"
 import type {IPacker} from "./index.ts"
 
 export class MetadataPacker implements IPacker {
@@ -26,12 +26,37 @@ export class MetadataPacker implements IPacker {
         delete project.extensions
         delete project.meta.agent
         delete project.meta.origin
-        if (project.monitors !== undefined && project.monitors.length === 0) {
-            delete project.monitors
+        if (project.monitors !== undefined) {
+            const shownIds = this._collectShownMonitorIds(project)
+            project.monitors = project.monitors.filter(
+                (monitor) => monitor.visible !== false || shownIds.has(monitor.id),
+            )
+            if (project.monitors.length === 0) {
+                delete project.monitors
+            }
         }
         for (const target of project.targets) {
             this._removeUnusedFromTarget(target)
         }
+    }
+
+    private _collectShownMonitorIds(project: Sb3Project): Set<string> {
+        const ids = new Set<string>()
+        for (const target of project.targets) {
+            for (const block of Object.values(target.blocks)) {
+                if (Array.isArray(block)) continue
+                let field: Sb3Field | undefined
+                if (block.opcode === "data_showvariable") {
+                    field = block.fields?.["VARIABLE"]
+                } else if (block.opcode === "data_showlist") {
+                    field = block.fields?.["LIST"]
+                }
+                if (field !== undefined && field[1] !== undefined) {
+                    ids.add(field[1])
+                }
+            }
+        }
+        return ids
     }
 
     private _removeUnusedFromTarget(target: Sb3Target): void {
