@@ -1,7 +1,9 @@
 import {readFile, writeFile} from "node:fs/promises"
 import {parseArgs} from "node:util"
 
+import {diffLines} from "diff"
 import JSZip from "jszip"
+import pc from "picocolors"
 
 import {packers} from "./packers/index.ts"
 import {sb3Validator} from "./sb3-validator.ts"
@@ -19,24 +21,22 @@ export class Application {
             console.error(`project.json not found in ${input}`)
             process.exit(1)
         }
-        const json = await projectJson.async("string")
-        const project = JSON.parse(json)
-
-        const errors = sb3Validator.validate(project, json)
-        if (errors !== null) {
-            console.log(errors)
-            process.exit(1)
-        }
-        console.log("BEFORE PACKING")
-        console.log(JSON.stringify(project, null, 2))
+        const project = JSON.parse(await projectJson.async("string"))
+        const before = JSON.stringify(project, null, 2) + "\n"
         for (const packer of packers) {
             packer.pack(project)
         }
-        console.log("AFTER PACKING")
-        console.log(JSON.stringify(project, null, 2))
+        this._printDiff(before, JSON.stringify(project, null, 2) + "\n")
+
+        const json = JSON.stringify(project)
+        const errors = sb3Validator.validate(project, json)
+        if (errors !== null) {
+            console.error(errors)
+            process.exit(1)
+        }
 
         const out = new JSZip()
-        out.file("project.json", JSON.stringify(project))
+        out.file("project.json", json)
         for (const [path, entry] of Object.entries(zip.files)) {
             if (entry.dir || path === "project.json") continue
             out.file(path, await entry.async("nodebuffer"))
@@ -45,6 +45,18 @@ export class Application {
             target,
             await out.generateAsync({type: "nodebuffer", compression: "DEFLATE"}),
         )
+    }
+
+    private _printDiff(before: string, after: string): void {
+        for (const part of diffLines(before, after)) {
+            if (part.added) {
+                process.stdout.write(pc.green(part.value))
+            } else if (part.removed) {
+                process.stdout.write(pc.red(part.value))
+            } else {
+                process.stdout.write(pc.dim(part.value))
+            }
+        }
     }
 
     private _parseArgs(): [input: string, output: string] {
