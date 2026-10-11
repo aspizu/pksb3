@@ -52,6 +52,28 @@ export class Application {
         console.log(
             `${inputBytes} bytes -> ${outputBytes.byteLength} bytes (${ratio.toFixed(2)}%)`,
         )
+        const size = outputBytes.byteLength
+        const budgets: [budget: number, label: string][] = [
+            [4096, "4k"],
+            [8192, "8k"],
+            [16384, "16k"],
+            [32768, "32k"],
+            [65536, "64k"],
+        ]
+        const next = budgets.find(([budget]) => size <= budget)
+        const prev = budgets.findLast(([budget]) => size > budget)
+        if (next !== undefined) {
+            const remaining = next[0] - size
+            console.log(
+                `(${next[1]}) ${remaining} bytes (${((remaining / next[0]) * 100).toFixed(2)}%) remaining`,
+            )
+        }
+        if (prev !== undefined) {
+            const over = size - prev[0]
+            console.log(
+                `(${prev[1]}) ${over} bytes (${((over / prev[0]) * 100).toFixed(2)}%) over`,
+            )
+        }
     }
 
     private _printDiff(before: string, after: string): void {
