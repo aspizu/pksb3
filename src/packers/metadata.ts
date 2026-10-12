@@ -19,13 +19,20 @@ export class MetadataPacker implements IPacker {
     }
 
     pack(project: Sb3Project): void {
-        this._removeUnused(project)
+        this._removeUnusedMeta(project)
+        this._removeUnusedMonitors(project)
+        for (const target of project.targets) {
+            this._removeUnusedFromTarget(target)
+        }
     }
 
-    private _removeUnused(project: Sb3Project): void {
+    private _removeUnusedMeta(project: Sb3Project): void {
         delete project.extensions
         delete project.meta.agent
         delete project.meta.origin
+    }
+
+    private _removeUnusedMonitors(project: Sb3Project): void {
         if (project.monitors !== undefined) {
             const shownIds = this._collectShownMonitorIds(project)
             project.monitors = project.monitors.filter(
@@ -34,9 +41,6 @@ export class MetadataPacker implements IPacker {
             if (project.monitors.length === 0) {
                 delete project.monitors
             }
-        }
-        for (const target of project.targets) {
-            this._removeUnusedFromTarget(target)
         }
     }
 
