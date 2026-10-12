@@ -54,7 +54,7 @@ export type Sb3InputPrimitive =
 
 export type Sb3TopLevelPrimitive = Sb3VariablePrimitive | Sb3ListPrimitive
 
-export type Sb3Input = [1 | 2 | 3, ...(string | Sb3InputPrimitive)[]]
+export type Sb3Input = [1 | 2 | 3, ...(string | Sb3InputPrimitive | null)[]]
 
 export interface Sb3Mutation {
     tagName: "mutation"
@@ -119,15 +119,15 @@ export type Sb3Field = [name: string, id?: string]
 
 export interface Sb3Monitor {
     id: string
-    mode: string
+    mode?: string
     opcode: string
     params: Record<string, unknown>
-    spriteName: string | null
+    spriteName?: string | null
     value: unknown
-    width: number
-    height: number
-    x: number
-    y: number
+    width?: number
+    height?: number
+    x?: number | null
+    y?: number | null
     visible?: boolean
     sliderMin?: number
     sliderMax?: number
