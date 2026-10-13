@@ -1,0 +1,46 @@
+name: CI
+
+on:
+    push:
+    pull_request:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    formatting:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@v7
+            - uses: pnpm/setup@v3.1.1
+              with:
+                  runtime: node@26
+                  cache: true
+            - run: pnpm fmt:check
+
+    typecheck:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@v7
+            - uses: pnpm/setup@v3.1.1
+              with:
+                  runtime: node@26
+                  cache: true
+            - run: pnpm typecheck
+
+    lint:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@v7
+            - uses: pnpm/setup@v3.1.1
+              with:
+                  runtime: node@26
+                  cache: true
+            - run: pnpm lint
