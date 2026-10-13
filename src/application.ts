@@ -23,8 +23,8 @@ export class Application {
         }
         const project = JSON.parse(await projectJson.async("string"))
         const before = JSON.stringify(project, null, 2) + "\n"
-        for (const packer of packers) {
-            packer.pack(project)
+        for (const Packer of packers) {
+            new Packer(project).pack()
         }
         this._printDiff(before, JSON.stringify(project, null, 2) + "\n")
 

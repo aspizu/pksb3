@@ -1,10 +1,8 @@
-import type {Sb3Project} from "../sb3.ts"
-import {metadataPacker} from "./metadata.ts"
+import {BlocksPacker} from "./blocks-packer.ts"
+import {MetadataPacker} from "./metadata-packer.ts"
+import {SpritePacker} from "./sprite-packer.ts"
 
-export interface IPacker {
-    pack(project: Sb3Project): void
-}
+export {Packer} from "./packer.ts"
+export {MetadataPacker, SpritePacker, BlocksPacker}
 
-export {MetadataPacker} from "./metadata.ts"
-
-export const packers: IPacker[] = [metadataPacker]
+export const packers = [MetadataPacker, SpritePacker, BlocksPacker]
