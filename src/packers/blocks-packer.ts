@@ -1,41 +1,54 @@
-import type {Sb3Block} from "../sb3.ts"
+import type {Sb3Block, Sb3Target} from "../sb3.ts"
 import {Packer} from "./packer.ts"
-
-const BLOCK_DEFAULTS = {
-    shadow: false,
-    topLevel: false,
-}
 
 export class BlocksPacker extends Packer {
     override pack(): void {
         for (const target of this._project.targets) {
-            for (const [id, block] of Object.entries(target.blocks)) {
-                const isFloatingReporter = Array.isArray(block)
-                const isFloatingBlock =
-                    !isFloatingReporter && !block.topLevel && block.parent === undefined
-                if (isFloatingReporter || isFloatingBlock) {
-                    delete target.blocks[id]
-                    continue
-                }
-                const record = block as unknown as Record<string, unknown>
-                for (const [key, value] of Object.entries(BLOCK_DEFAULTS)) {
-                    if (record[key] === value) {
-                        delete record[key]
-                    }
-                }
-                this._removeUnusedFromBlock(block)
+            this._packBlocks(target.blocks)
+        }
+    }
+
+    private _packBlocks(blocks: Sb3Target["blocks"]): void {
+        this._removeUnusedFloatingBlocks(blocks)
+        for (const block of Object.values(blocks)) {
+            if (Array.isArray(block)) continue
+            this._removeEditorMetadata(block)
+            this._removeUnusedInputs(block)
+            this._removeBlockDefaultFields(block)
+            this._removeProcedureMutationDefaults(block)
+        }
+    }
+
+    private _removeUnusedFloatingBlocks(blocks: Sb3Target["blocks"]): void {
+        for (const [id, block] of Object.entries(blocks)) {
+            const isFloatingReporter = Array.isArray(block)
+            const isFloatingBlock =
+                !isFloatingReporter && !block.topLevel && block.parent === undefined
+            if (isFloatingReporter || isFloatingBlock) {
+                delete blocks[id]
             }
         }
     }
 
-    private _removeUnusedFromBlock(block: Sb3Block): void {
+    private _removeEditorMetadata(block: Sb3Block): void {
         delete block.comment
         delete block.x
         delete block.y
-        this._removeUnusedInputs(block)
+    }
+
+    private _removeBlockDefaultFields(block: Sb3Block): void {
+        if (block.shadow === false) {
+            delete block.shadow
+        }
+        if (block.topLevel === false) {
+            delete block.topLevel
+        }
         if (block.fields !== undefined && Object.keys(block.fields).length === 0) {
             delete block.fields
         }
+    }
+
+    private _removeProcedureMutationDefaults(block: Sb3Block): void {
         if (
             block.opcode !== "procedures_call" &&
             block.opcode !== "procedures_prototype"
