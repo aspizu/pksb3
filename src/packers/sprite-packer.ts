@@ -22,19 +22,16 @@ export class SpritePacker extends Packer {
         this._removeUnusedLayerOrder()
         for (const target of this._project.targets) {
             this._removeUnusedFromTarget(target)
+            for (const costume of target.costumes) {
+                this._removeUnusedFromCostume(costume)
+            }
         }
     }
 
     private _removeUnusedLayerOrder(): void {
-        let previousLayerOrder = -Infinity
-        for (const target of this._project.targets) {
-            if (
-                target.layerOrder === undefined ||
-                target.layerOrder < previousLayerOrder
-            )
-                return
-            previousLayerOrder = target.layerOrder
-        }
+        this._project.targets.sort(
+            (a, b) => Number(a.layerOrder) - Number(b.layerOrder),
+        )
         for (const target of this._project.targets) {
             delete target.layerOrder
         }
@@ -54,9 +51,6 @@ export class SpritePacker extends Packer {
             }
         }
         delete target.comments
-        for (const costume of target.costumes) {
-            this._removeUnusedFromCostume(costume)
-        }
         for (const sound of target.sounds) {
             delete sound.rate
             delete sound.sampleCount
