@@ -13,14 +13,15 @@ const {default: diffSequences} = createRequire(import.meta.url)(
     "@jest/diff-sequences",
 ) as typeof import("@jest/diff-sequences")
 
-const usage = `usage: pksb3 [--diff] path/to/input.sb3 [path/to/output.sb3]
+const usage = `usage: pksb3 [--diff] [--compression-level 0-9] path/to/input.sb3 [path/to/output.sb3]
 
 output is optional, default to <input_file_name>.pk.sb3
---diff prints the project.json diff`
+--diff prints the project.json diff
+--compression-level sets ZIP compression from 0 (none) to 9 (maximum, default)`
 
 export class Application {
     async run(): Promise<void> {
-        const {input, output, showDiff} = this._parseArgs()
+        const {input, output, showDiff, compressionLevel} = this._parseArgs()
         const inputBuffer = await readFile(input)
         const zip = await JSZip.loadAsync(inputBuffer)
         const projectJson = zip.file("project.json")
@@ -45,10 +46,14 @@ export class Application {
             out.file(path, await entry.async("nodebuffer"))
         }
         const inputBytes = inputBuffer.byteLength
+        let compression: "STORE" | "DEFLATE" = "DEFLATE"
+        if (compressionLevel === 0) {
+            compression = "STORE"
+        }
         const outputBytes = await out.generateAsync({
             type: "nodebuffer",
-            compression: "DEFLATE",
-            compressionOptions: {level: 9},
+            compression,
+            compressionOptions: {level: compressionLevel},
         })
         await writeFile(output, outputBytes)
         const ratio = (outputBytes.byteLength / inputBytes) * 100
@@ -135,21 +140,35 @@ export class Application {
         process.stdout.write(output.join(""))
     }
 
-    private _parseArgs(): {input: string; output: string; showDiff: boolean} {
+    private _parseArgs(): {
+        input: string
+        output: string
+        showDiff: boolean
+        compressionLevel: number
+    } {
         const {positionals, values} = parseArgs({
             args: process.argv.slice(2),
             allowPositionals: true,
-            options: {diff: {type: "boolean"}},
+            options: {
+                diff: {type: "boolean"},
+                "compression-level": {type: "string"},
+            },
         })
         const [input, output] = positionals
         if (input === undefined || positionals.length > 2) {
             console.error(usage)
             process.exit(1)
         }
+        const compressionLevel = values["compression-level"] ?? "9"
+        if (!/^[0-9]$/.test(compressionLevel)) {
+            console.error("--compression-level must be an integer from 0 to 9")
+            process.exit(1)
+        }
         return {
             input,
             output: output ?? input.replace(/\.sb3$/, "") + ".pk.sb3",
             showDiff: values.diff === true,
+            compressionLevel: Number(compressionLevel),
         }
     }
 }
