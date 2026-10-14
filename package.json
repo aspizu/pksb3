@@ -21,9 +21,9 @@
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "dependencies": {
+        "@jest/diff-sequences": "^30.5.0",
         "ajv": "^8.20.0",
         "better-ajv-errors": "^3.0.0",
-        "diff": "^9.0.0",
         "glob": "^13.0.6",
         "jszip": "^3.10.2",
         "picocolors": "^1.1.1"

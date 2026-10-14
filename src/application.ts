@@ -1,32 +1,35 @@
 import {readFile, writeFile} from "node:fs/promises"
+import {createRequire} from "node:module"
 import {parseArgs} from "node:util"
 
-import {diffLines} from "diff"
 import JSZip from "jszip"
 import pc from "picocolors"
 
 import {packers} from "./packers/index.ts"
 import {sb3Validator} from "./sb3-validator.ts"
+import type {Sb3Project} from "./sb3.ts"
 
-const usage = `usage: pksb3 path/to/input.sb3 [path/to/output.sb3]
+const {default: diffSequences} = createRequire(import.meta.url)(
+    "@jest/diff-sequences",
+) as typeof import("@jest/diff-sequences")
 
-output is optional, default to <input_file_name>.pk.sb3`
+const usage = `usage: pksb3 [--diff] path/to/input.sb3 [path/to/output.sb3]
+
+output is optional, default to <input_file_name>.pk.sb3
+--diff prints the project.json diff`
 
 export class Application {
     async run(): Promise<void> {
-        const [input, target] = this._parseArgs()
-        const zip = await JSZip.loadAsync(await readFile(input))
+        const [input, target, diff] = this._parseArgs()
+        const inputBuffer = await readFile(input)
+        const zip = await JSZip.loadAsync(inputBuffer)
         const projectJson = zip.file("project.json")
         if (projectJson === null) {
             console.error(`project.json not found in ${input}`)
             process.exit(1)
         }
         const project = JSON.parse(await projectJson.async("string"))
-        const before = JSON.stringify(project, null, 2) + "\n"
-        for (const Packer of packers) {
-            new Packer(project).pack()
-        }
-        this._printDiff(before, JSON.stringify(project, null, 2) + "\n")
+        this._packProject(project, diff)
 
         const json = JSON.stringify(project)
         const errors = sb3Validator.validate(project, json)
@@ -41,7 +44,7 @@ export class Application {
             if (entry.dir || path === "project.json") continue
             out.file(path, await entry.async("nodebuffer"))
         }
-        const inputBytes = (await readFile(input)).byteLength
+        const inputBytes = inputBuffer.byteLength
         const outputBytes = await out.generateAsync({
             type: "nodebuffer",
             compression: "DEFLATE",
@@ -76,39 +79,84 @@ export class Application {
         }
     }
 
-    private _printDiff(before: string, after: string): void {
-        for (const part of diffLines(before, after)) {
-            let prefix: string
-            let color: (text: string) => string
-            if (part.added) {
-                prefix = "+"
-                color = pc.green
-            } else if (part.removed) {
-                prefix = "-"
-                color = pc.red
-            } else {
-                prefix = " "
-                color = pc.dim
-            }
-            for (const line of part.value.split("\n")) {
-                if (line !== "") {
-                    process.stdout.write(color(prefix + line + "\n"))
-                }
-            }
+    private _packProject(project: Sb3Project, diff: boolean): void {
+        let before = ""
+        if (diff) {
+            before = JSON.stringify(project, null, 2)
+        }
+        for (const Packer of packers) {
+            new Packer(project).pack()
+        }
+        if (diff) {
+            this._printDiff(before, JSON.stringify(project, null, 2))
         }
     }
 
-    private _parseArgs(): [input: string, output: string] {
-        const {positionals} = parseArgs({
+    private _printDiff(before: string, after: string): void {
+        const oldLines = before.split("\n")
+        const newLines = after.split("\n")
+        const lineIds = new Map<string, number>()
+        const oldIds = oldLines.map(_getLineId)
+        const newIds = newLines.map(_getLineId)
+        const output: string[] = []
+        let oldIndex = 0
+        let newIndex = 0
+        function _getLineId(line: string): number {
+            let id = lineIds.get(line)
+            if (id === undefined) {
+                id = lineIds.size
+                lineIds.set(line, id)
+            }
+            return id
+        }
+        function _append(
+            lines: string[],
+            start: number,
+            end: number,
+            prefix: string,
+            color: (text: string) => string,
+        ): void {
+            for (let index = start; index < end; index++) {
+                output.push(color(prefix + lines[index] + "\n"))
+            }
+        }
+        function _foundSubsequence(
+            count: number,
+            oldStart: number,
+            newStart: number,
+        ): void {
+            _append(oldLines, oldIndex, oldStart, "-", pc.red)
+            _append(newLines, newIndex, newStart, "+", pc.green)
+            oldIndex = oldStart + count
+            newIndex = newStart + count
+            _append(newLines, newStart, newIndex, " ", pc.dim)
+        }
+        diffSequences(
+            oldLines.length,
+            newLines.length,
+            (oldIndex, newIndex) => oldIds[oldIndex] === newIds[newIndex],
+            _foundSubsequence,
+        )
+        _foundSubsequence(0, oldLines.length, newLines.length)
+        process.stdout.write(output.join(""))
+    }
+
+    private _parseArgs(): [input: string, output: string, diff: boolean] {
+        const {positionals, values} = parseArgs({
             args: process.argv.slice(2),
             allowPositionals: true,
+            options: {diff: {type: "boolean"}},
         })
         const [input, output] = positionals
         if (input === undefined || positionals.length > 2) {
             console.error(usage)
             process.exit(1)
         }
-        return [input, output ?? input.replace(/\.sb3$/, "") + ".pk.sb3"]
+        return [
+            input,
+            output ?? input.replace(/\.sb3$/, "") + ".pk.sb3",
+            values.diff === true,
+        ]
     }
 }
 
