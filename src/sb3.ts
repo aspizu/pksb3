@@ -61,6 +61,7 @@ export interface Sb3Mutation {
     children?: unknown[]
     proccode?: string
     argumentids?: string
+    argumentnames?: string
     warp?: "true" | "false" | "null" | boolean | null
     hasnext?: "true" | "false" | "null" | boolean | null
 }

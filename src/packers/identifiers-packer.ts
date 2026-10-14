@@ -1,223 +1,317 @@
-import type {Sb3Block, Sb3Input, Sb3TopLevelPrimitive} from "../sb3.ts"
+import {$enum} from "../enum.ts"
+import type {
+    Sb3Block,
+    Sb3Input,
+    Sb3Mutation,
+    Sb3Target,
+    Sb3TopLevelPrimitive,
+} from "../sb3.ts"
+import {IdentifierGenerator} from "./identifier-generator.ts"
+import {
+    type DataDictionaryReference,
+    type DictionaryReference,
+    type JsonArrayReference,
+    type Reference,
+    rebuildDictionary,
+    renameReference,
+} from "./identifier-reference.ts"
 import {Packer} from "./packer.ts"
 
-// [UTF-8 bytes in JSON, inclusive start, exclusive end].
-const CHARACTER_RANGES = [
-    // Space and "!"; exclude double quote, which Scratch rewrites.
-    [1, 0x20, 0x22],
-    // "#", "$", "%"; exclude "&" and "'", which Scratch rewrites.
-    [1, 0x23, 0x26],
-    // "(" through ";", including digits; exclude rewritten "<".
-    [1, 0x28, 0x3c],
-    // "="; exclude ">", which Scratch rewrites.
-    [1, 0x3d, 0x3e],
-    // "?" through "[", including A-Z; handle backslash separately.
-    [1, 0x3f, 0x5c],
-    // "]" through DEL, including a-z; all serialize as one byte.
-    [1, 0x5d, 0x80],
-    // Backslash costs two bytes because JSON escapes it.
-    [2, 0x5c, 0x5d],
-    // Backspace, tab and line feed: JSON uses two-byte short escapes.
-    [2, 0x08, 0x0b],
-    // Form feed and carriage return: JSON uses two-byte short escapes.
-    [2, 0x0c, 0x0e],
-    // U+0080-U+07FF: two-byte UTF-8 characters.
-    [2, 0x80, 0x800],
-    // U+0800-U+D7FF: three-byte UTF-8; handle lone surrogates separately.
-    [3, 0x800, 0xd800],
-    // U+E000-U+FFFF: three-byte UTF-8, including XML-invalid noncharacters.
-    [3, 0xe000, 0x10000],
-    // U+10000-U+10FFFF: four-byte UTF-8, including astral characters.
-    [4, 0x10000, 0x110000],
-    // U+0000-U+0007: controls requiring six-byte JSON Unicode escapes.
-    [6, 0x00, 0x08],
-    // Vertical tab: JSON has no short escape, so it requires six bytes.
-    [6, 0x0b, 0x0c],
-    // U+000E-U+001F: the remaining six-byte JSON control escapes.
-    [6, 0x0e, 0x20],
-    // Lone surrogates use six-byte JSON escapes; pairs use the four-byte range.
-    [6, 0xd800, 0xe000],
-] as const
+const IdentifierType = $enum("Block", "Variable", "List", "Argument", "Procedure")
+type IdentifierType = $enum<typeof IdentifierType>
 
-class IdentifierGenerator {
-    private _size = 1
-    private _identifiers = this._generate(this._size)
-
-    generate(): string {
-        for (;;) {
-            const next = this._identifiers.next()
-            if (next.done) {
-                this._identifiers = this._generate(++this._size)
-                continue
-            }
-            const id = next.value
-            const index = Number(id)
-            if (
-                Number.isInteger(index) &&
-                index >= 0 &&
-                index < 0xffffffff &&
-                String(index) === id
-            )
-                continue
-            return id
-        }
-    }
-
-    private *_generate(size: number): Generator<string, void> {
-        if (size === 0) {
-            yield ""
-            return
-        }
-        for (const [bytes, start, end] of CHARACTER_RANGES) {
-            if (bytes > size) continue
-            for (let codePoint = start; codePoint < end; codePoint++) {
-                const character = String.fromCodePoint(codePoint)
-                for (const suffix of this._generate(size - bytes)) {
-                    const first = suffix.charCodeAt(0)
-                    if (
-                        codePoint >= 0xd800 &&
-                        codePoint < 0xdc00 &&
-                        first >= 0xdc00 &&
-                        first < 0xe000
-                    )
-                        continue
-                    yield character + suffix
-                }
-            }
-        }
-    }
+interface Identifier {
+    type: IdentifierType
+    value: string
+    references: Reference[]
 }
 
+const FIELD_TYPES = [
+    ["VARIABLE", IdentifierType.Variable],
+    ["LIST", IdentifierType.List],
+] as const
+
 export class IdentifiersPacker extends Packer {
+    private _identifiers = new Map<string, Identifier>()
+    private _dictionaries: DictionaryReference[] = []
+    private _jsonArrays: JsonArrayReference[] = []
+    private _cloudVariables = new Set<string>()
+    private _skippedIds = new Set<string>()
+
     override pack(): void {
-        const references = new Map<string, number>()
-        const skippedIds = this._collectSkippedIds()
-        this._mapIdentifiers((id) => {
-            references.set(id, (references.get(id) ?? 0) + 1)
-            return id
-        })
-        const generator = new IdentifierGenerator()
-        const identifiers = new Map<string, string>()
-        for (const [id] of [...references].sort((a, b) => b[1] - a[1])) {
-            let newId = generator.generate()
-            while (skippedIds.has(newId)) {
-                newId = generator.generate()
-            }
-            identifiers.set(id, newId)
-        }
-        this._mapIdentifiers((id) => identifiers.get(id) ?? id)
+        this._collectIdentifiers()
+        this._renameIdentifiers()
     }
 
-    private _collectSkippedIds(): Set<string> {
-        const skippedIds = new Set(["of"])
+    private _collectIdentifiers(): void {
+        this._identifiers.clear()
+        this._dictionaries = []
+        this._jsonArrays = []
+        this._cloudVariables.clear()
+        this._skippedIds = new Set(["of"])
+        this._collectPreservedIdentifiers()
         for (const target of this._project.targets) {
+            this._collectTargetIdentifiers(target)
+        }
+        this._collectMonitorIdentifiers()
+    }
+
+    private _collectPreservedIdentifiers(): void {
+        for (const target of this._project.targets) {
+            for (const [id, variable] of Object.entries(target.variables ?? {})) {
+                if (variable[2] === true) {
+                    this._cloudVariables.add(id)
+                }
+            }
             for (const id of Object.keys(target.broadcasts ?? {})) {
-                skippedIds.add(id)
+                this._skippedIds.add(id)
             }
         }
-        for (const monitor of this._project.monitors ?? []) {
-            if (
-                monitor.opcode !== "data_variable" &&
-                monitor.opcode !== "data_listcontents"
-            ) {
-                skippedIds.add(monitor.id)
-            }
-        }
-        return skippedIds
     }
 
-    private _mapIdentifiers(map: (id: string) => string): void {
-        const cloudNames = new Map(
-            this._project.targets.flatMap((target) =>
-                Object.entries(target.variables ?? {})
-                    .filter(([, variable]) => variable[2] === true)
-                    .map(([id, variable]) => [id, variable[0]] as const),
-            ),
-        )
-        function _mapName(id: string): string {
-            return cloudNames.get(id) ?? map(id)
+    private _collectTargetIdentifiers(target: Sb3Target): void {
+        const argumentIds = this._collectArgumentIds(target.blocks)
+        if (target.variables !== undefined) {
+            this._collectDataIdentifiers(IdentifierType.Variable, {
+                target,
+                key: "variables",
+                entries: Object.entries(target.variables),
+            })
         }
-        for (const target of this._project.targets) {
-            for (const key of ["variables", "lists"] as const) {
-                if (target[key] === undefined) continue
-                target[key] = Object.fromEntries(
-                    Object.entries(target[key]).map(([id, value]) => {
-                        const newId = map(id)
-                        value[0] = _mapName(id)
-                        return [newId, value]
-                    }),
-                )
-            }
-            target.blocks = Object.fromEntries(
-                Object.entries(target.blocks).map(([id, block]) => {
-                    const newId = map(id)
-                    this._mapBlockIdentifiers(block, map, _mapName)
-                    return [newId, block]
-                }),
-            )
+        if (target.lists !== undefined) {
+            this._collectDataIdentifiers(IdentifierType.List, {
+                target,
+                key: "lists",
+                entries: Object.entries(target.lists),
+            })
         }
-        this._mapMonitorIdentifiers(map, _mapName)
+        const entries = Object.entries(target.blocks)
+        this._dictionaries.push({target, key: "blocks", entries})
+        for (const entry of entries) {
+            this._addReference(IdentifierType.Block, {target: entry, key: 0}, entry[0])
+            this._collectBlockIdentifiers(entry[1], argumentIds)
+        }
     }
 
-    private _mapMonitorIdentifiers(
-        map: (id: string) => string,
-        mapName: (id: string) => string,
+    private _collectDataIdentifiers(
+        type: IdentifierType,
+        reference: DataDictionaryReference,
     ): void {
-        for (const monitor of this._project.monitors ?? []) {
-            let name: string
-            if (monitor.opcode === "data_variable") {
-                name = "VARIABLE"
-            } else if (monitor.opcode === "data_listcontents") {
-                name = "LIST"
-            } else continue
-            const id = monitor.id
-            monitor.id = map(id)
-            monitor.params[name] = mapName(id)
+        this._dictionaries.push(reference)
+        for (const entry of reference.entries) {
+            const [id, value] = entry
+            this._addReference(type, {target: entry, key: 0}, id)
+            this._addNameReference(type, {target: value, key: 0}, id)
         }
     }
 
-    private _mapBlockIdentifiers(
+    private _collectArgumentIds(blocks: Sb3Target["blocks"]): Map<string, string> {
+        const argumentIds = new Map<string, string>()
+        for (const block of Object.values(blocks)) {
+            if (Array.isArray(block) || block.opcode !== "procedures_prototype")
+                continue
+            const mutation = block.mutation
+            if (!mutation?.argumentids || !mutation.argumentnames) continue
+            const ids = JSON.parse(mutation.argumentids) as string[]
+            const names = JSON.parse(mutation.argumentnames) as string[]
+            for (const [index, name] of names.entries()) {
+                argumentIds.set(name, ids[index] ?? name)
+            }
+        }
+        return argumentIds
+    }
+
+    private _collectBlockIdentifiers(
         block: Sb3Block | Sb3TopLevelPrimitive,
-        map: (id: string) => string,
-        mapName: (id: string) => string,
+        argumentIds: Map<string, string>,
     ): void {
         if (Array.isArray(block)) {
-            const id = block[2]
-            block[2] = map(id)
-            block[1] = mapName(id)
+            this._collectPrimitiveIdentifiers(block)
             return
         }
         for (const key of ["parent", "next"] as const) {
             const id = block[key]
             if (typeof id === "string") {
-                block[key] = map(id)
+                this._addReference(IdentifierType.Block, {target: block, key}, id)
             }
         }
-        for (const name of ["VARIABLE", "LIST"]) {
-            const field = block.fields?.[name]
+        for (const [key, type] of FIELD_TYPES) {
+            const field = block.fields?.[key]
             if (field?.[1] === undefined) continue
-            const id = field[1]
-            field[1] = map(id)
-            field[0] = mapName(id)
+            this._addReference(type, {target: field, key: 1}, field[1])
+            this._addNameReference(type, {target: field, key: 0}, field[1])
         }
         for (const input of Object.values(block.inputs ?? {})) {
-            this._mapInputIdentifiers(input, map, mapName)
+            this._collectInputIdentifiers(input)
+        }
+        this._collectProcedureIdentifiers(block, argumentIds)
+    }
+
+    private _collectPrimitiveIdentifiers(primitive: Sb3TopLevelPrimitive): void {
+        let type: IdentifierType = IdentifierType.Variable
+        if (primitive[0] === 13) {
+            type = IdentifierType.List
+        }
+        this._addReference(type, {target: primitive, key: 2}, primitive[2])
+        this._addNameReference(type, {target: primitive, key: 1}, primitive[2])
+    }
+
+    private _collectInputIdentifiers(input: Sb3Input): void {
+        for (const [index, value] of input.entries()) {
+            if (typeof value === "string") {
+                this._addReference(
+                    IdentifierType.Block,
+                    {target: input, key: index},
+                    value,
+                )
+            } else if (Array.isArray(value) && (value[0] === 12 || value[0] === 13)) {
+                this._collectPrimitiveIdentifiers(value)
+            }
         }
     }
 
-    private _mapInputIdentifiers(
-        input: Sb3Input,
-        map: (id: string) => string,
-        mapName: (id: string) => string,
+    private _collectProcedureIdentifiers(
+        block: Sb3Block,
+        argumentIds: Map<string, string>,
     ): void {
-        for (const [index, value] of input.entries()) {
-            if (typeof value === "string") {
-                input[index] = map(value)
-            } else if (Array.isArray(value) && (value[0] === 12 || value[0] === 13)) {
-                const id = value[2]
-                value[2] = map(id)
-                value[1] = mapName(id)
+        if (block.opcode.startsWith("argument_reporter_")) {
+            const field = block.fields?.["VALUE"]
+            if (field !== undefined) {
+                const id = argumentIds.get(field[0]) ?? field[0]
+                this._addReference(IdentifierType.Argument, {target: field, key: 0}, id)
+            }
+            return
+        }
+        const mutation = block.mutation
+        if (mutation?.proccode === undefined) return
+        this._addReference(
+            IdentifierType.Procedure,
+            {target: mutation, key: "proccode"},
+            mutation.proccode,
+        )
+        this._collectArgumentIdentifiers(mutation, argumentIds)
+        if (block.inputs === undefined) return
+        const entries = Object.entries(block.inputs)
+        this._dictionaries.push({target: block, key: "inputs", entries})
+        for (const entry of entries) {
+            this._addReference(
+                IdentifierType.Argument,
+                {target: entry, key: 0},
+                entry[0],
+            )
+        }
+    }
+
+    private _collectArgumentIdentifiers(
+        mutation: Sb3Mutation,
+        argumentIds: Map<string, string>,
+    ): void {
+        for (const key of ["argumentids", "argumentnames"] as const) {
+            const value = mutation[key]
+            if (value === undefined) continue
+            const values = JSON.parse(value) as string[]
+            this._jsonArrays.push({target: mutation, key, values})
+            for (const [index, name] of values.entries()) {
+                let id = name
+                if (key === "argumentnames") {
+                    id = argumentIds.get(name) ?? name
+                }
+                this._addReference(
+                    IdentifierType.Argument,
+                    {target: values, key: index},
+                    id,
+                )
             }
         }
+    }
+
+    private _collectMonitorIdentifiers(): void {
+        for (const monitor of this._project.monitors ?? []) {
+            let type: IdentifierType
+            let key: "VARIABLE" | "LIST"
+            switch (monitor.opcode) {
+                case "data_variable":
+                    type = IdentifierType.Variable
+                    key = "VARIABLE"
+                    break
+                case "data_listcontents":
+                    type = IdentifierType.List
+                    key = "LIST"
+                    break
+                default:
+                    this._skippedIds.add(monitor.id)
+                    continue
+            }
+            this._addReference(type, {target: monitor, key: "id"}, monitor.id)
+            this._addNameReference(type, {target: monitor.params, key}, monitor.id)
+        }
+    }
+
+    private _addNameReference(type: IdentifierType, ref: Reference, id: string): void {
+        if (type === IdentifierType.Variable && this._cloudVariables.has(id)) return
+        this._addReference(type, ref, id)
+    }
+
+    private _addReference(
+        type: IdentifierType,
+        reference: Reference,
+        id: string,
+    ): void {
+        const mapKey = `${type}:${id}`
+        let identifier = this._identifiers.get(mapKey)
+        if (identifier === undefined) {
+            identifier = {type, value: id, references: []}
+            this._identifiers.set(mapKey, identifier)
+        }
+        identifier.references.push(reference)
+    }
+
+    private _renameIdentifiers(): void {
+        const frequencies: Identifier[][] = []
+        for (const identifier of this._identifiers.values()) {
+            const count = identifier.references.length
+            const bucket = frequencies[count] ?? []
+            bucket.push(identifier)
+            frequencies[count] = bucket
+        }
+        const generator = new IdentifierGenerator()
+        const procedureGenerator = new IdentifierGenerator()
+        for (let count = frequencies.length - 1; count >= 0; count--) {
+            for (const identifier of frequencies[count] ?? []) {
+                const value = this._generateIdentifier(
+                    identifier,
+                    generator,
+                    procedureGenerator,
+                )
+                for (const reference of identifier.references) {
+                    renameReference(reference, value)
+                }
+            }
+        }
+        for (const reference of this._dictionaries) {
+            rebuildDictionary(reference)
+        }
+        for (const reference of this._jsonArrays) {
+            reference.target[reference.key] = JSON.stringify(reference.values)
+        }
+    }
+
+    private _generateIdentifier(
+        identifier: Identifier,
+        generator: IdentifierGenerator,
+        procedureGenerator: IdentifierGenerator,
+    ): string {
+        if (identifier.type === IdentifierType.Procedure) {
+            let name = procedureGenerator.generate()
+            while (name.trim() !== name || /[%\\]/.test(name)) {
+                name = procedureGenerator.generate()
+            }
+            return [name, ...(identifier.value.match(/(?<!\\)%[nbs]/g) ?? [])].join(" ")
+        }
+        let id = generator.generate()
+        while (this._skippedIds.has(id)) {
+            id = generator.generate()
+        }
+        return id
     }
 }
