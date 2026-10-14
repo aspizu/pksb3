@@ -134,8 +134,8 @@ export class IdentifiersPacker extends Packer {
                     .map(([id, variable]) => [id, variable[0]] as const),
             ),
         )
-        function _mapName(id: string, newId: string): string {
-            return cloudNames.get(id) ?? newId
+        function _mapName(id: string): string {
+            return cloudNames.get(id) ?? map(id)
         }
         for (const target of this._project.targets) {
             for (const key of ["variables", "lists"] as const) {
@@ -143,7 +143,7 @@ export class IdentifiersPacker extends Packer {
                 target[key] = Object.fromEntries(
                     Object.entries(target[key]).map(([id, value]) => {
                         const newId = map(id)
-                        value[0] = _mapName(id, newId)
+                        value[0] = _mapName(id)
                         return [newId, value]
                     }),
                 )
@@ -161,7 +161,7 @@ export class IdentifiersPacker extends Packer {
 
     private _mapMonitorIdentifiers(
         map: (id: string) => string,
-        mapName: (id: string, newId: string) => string,
+        mapName: (id: string) => string,
     ): void {
         for (const monitor of this._project.monitors ?? []) {
             let name: string
@@ -172,19 +172,19 @@ export class IdentifiersPacker extends Packer {
             } else continue
             const id = monitor.id
             monitor.id = map(id)
-            monitor.params[name] = mapName(id, monitor.id)
+            monitor.params[name] = mapName(id)
         }
     }
 
     private _mapBlockIdentifiers(
         block: Sb3Block | Sb3TopLevelPrimitive,
         map: (id: string) => string,
-        mapName: (id: string, newId: string) => string,
+        mapName: (id: string) => string,
     ): void {
         if (Array.isArray(block)) {
             const id = block[2]
             block[2] = map(id)
-            block[1] = mapName(id, block[2])
+            block[1] = mapName(id)
             return
         }
         for (const key of ["parent", "next"] as const) {
@@ -198,7 +198,7 @@ export class IdentifiersPacker extends Packer {
             if (field?.[1] === undefined) continue
             const id = field[1]
             field[1] = map(id)
-            field[0] = mapName(id, field[1])
+            field[0] = mapName(id)
         }
         for (const input of Object.values(block.inputs ?? {})) {
             this._mapInputIdentifiers(input, map, mapName)
@@ -208,7 +208,7 @@ export class IdentifiersPacker extends Packer {
     private _mapInputIdentifiers(
         input: Sb3Input,
         map: (id: string) => string,
-        mapName: (id: string, newId: string) => string,
+        mapName: (id: string) => string,
     ): void {
         for (const [index, value] of input.entries()) {
             if (typeof value === "string") {
@@ -216,7 +216,7 @@ export class IdentifiersPacker extends Packer {
             } else if (Array.isArray(value) && (value[0] === 12 || value[0] === 13)) {
                 const id = value[2]
                 value[2] = map(id)
-                value[1] = mapName(id, value[2])
+                value[1] = mapName(id)
             }
         }
     }
