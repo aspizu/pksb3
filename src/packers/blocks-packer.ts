@@ -9,7 +9,7 @@ export class BlocksPacker extends Packer {
     }
 
     private _packBlocks(blocks: Sb3Target["blocks"]): void {
-        this._removeUnusedFloatingBlocks(blocks)
+        this._removeUnreachableBlocks(blocks)
         for (const block of Object.values(blocks)) {
             if (Array.isArray(block)) continue
             this._removeEditorMetadata(block)
@@ -19,15 +19,43 @@ export class BlocksPacker extends Packer {
         }
     }
 
-    private _removeUnusedFloatingBlocks(blocks: Sb3Target["blocks"]): void {
-        for (const [id, block] of Object.entries(blocks)) {
-            const isFloatingReporter = Array.isArray(block)
-            const isFloatingBlock =
-                !isFloatingReporter && !block.topLevel && block.parent === undefined
-            if (isFloatingReporter || isFloatingBlock) {
+    private _removeUnreachableBlocks(blocks: Sb3Target["blocks"]): void {
+        const reachable = this._collectReachableBlocks(blocks)
+        for (const id of Object.keys(blocks)) {
+            if (!reachable.has(id)) {
                 delete blocks[id]
             }
         }
+    }
+
+    private _collectReachableBlocks(blocks: Sb3Target["blocks"]): Set<string> {
+        const reachable = new Set<string>()
+        const pending = Object.entries(blocks)
+            .filter(
+                ([, block]) =>
+                    !Array.isArray(block) &&
+                    (block.opcode.startsWith("event_when") ||
+                        block.opcode === "control_start_as_clone" ||
+                        block.opcode === "procedures_definition"),
+            )
+            .map(([id]) => id)
+        for (const id of pending) {
+            if (reachable.has(id)) continue
+            reachable.add(id)
+            const block = blocks[id]
+            if (block === undefined || Array.isArray(block)) continue
+            if (typeof block.next === "string") {
+                pending.push(block.next)
+            }
+            for (const input of Object.values(block.inputs ?? {})) {
+                for (const value of input) {
+                    if (typeof value === "string") {
+                        pending.push(value)
+                    }
+                }
+            }
+        }
+        return reachable
     }
 
     private _removeEditorMetadata(block: Sb3Block): void {
