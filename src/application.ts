@@ -20,7 +20,7 @@ output is optional, default to <input_file_name>.pk.sb3
 
 export class Application {
     async run(): Promise<void> {
-        const [input, target, diff] = this._parseArgs()
+        const {input, output, showDiff} = this._parseArgs()
         const inputBuffer = await readFile(input)
         const zip = await JSZip.loadAsync(inputBuffer)
         const projectJson = zip.file("project.json")
@@ -29,7 +29,7 @@ export class Application {
             process.exit(1)
         }
         const project = JSON.parse(await projectJson.async("string"))
-        this._packProject(project, diff)
+        this._packProject(project, showDiff)
 
         const json = JSON.stringify(project)
         const errors = sb3Validator.validate(project, json)
@@ -50,7 +50,7 @@ export class Application {
             compression: "DEFLATE",
             compressionOptions: {level: 9},
         })
-        await writeFile(target, outputBytes)
+        await writeFile(output, outputBytes)
         const ratio = (outputBytes.byteLength / inputBytes) * 100
         console.log(
             `${inputBytes} bytes -> ${outputBytes.byteLength} bytes (${ratio.toFixed(2)}%)`,
@@ -79,15 +79,15 @@ export class Application {
         }
     }
 
-    private _packProject(project: Sb3Project, diff: boolean): void {
+    private _packProject(project: Sb3Project, showDiff: boolean): void {
         let before = ""
-        if (diff) {
+        if (showDiff) {
             before = JSON.stringify(project, null, 2)
         }
         for (const Packer of packers) {
             new Packer(project).pack()
         }
-        if (diff) {
+        if (showDiff) {
             this._printDiff(before, JSON.stringify(project, null, 2))
         }
     }
@@ -109,39 +109,33 @@ export class Application {
             }
             return id
         }
-        function _append(
+        function _appendLines(
             lines: string[],
-            start: number,
-            end: number,
             prefix: string,
             color: (text: string) => string,
         ): void {
-            for (let index = start; index < end; index++) {
-                output.push(color(prefix + lines[index] + "\n"))
+            for (const line of lines) {
+                output.push(color(prefix + line + "\n"))
             }
-        }
-        function _foundSubsequence(
-            count: number,
-            oldStart: number,
-            newStart: number,
-        ): void {
-            _append(oldLines, oldIndex, oldStart, "-", pc.red)
-            _append(newLines, newIndex, newStart, "+", pc.green)
-            oldIndex = oldStart + count
-            newIndex = newStart + count
-            _append(newLines, newStart, newIndex, " ", pc.dim)
         }
         diffSequences(
             oldLines.length,
             newLines.length,
             (oldIndex, newIndex) => oldIds[oldIndex] === newIds[newIndex],
-            _foundSubsequence,
+            (count, oldStart, newStart) => {
+                _appendLines(oldLines.slice(oldIndex, oldStart), "-", pc.red)
+                _appendLines(newLines.slice(newIndex, newStart), "+", pc.green)
+                _appendLines(newLines.slice(newStart, newStart + count), " ", pc.dim)
+                oldIndex = oldStart + count
+                newIndex = newStart + count
+            },
         )
-        _foundSubsequence(0, oldLines.length, newLines.length)
+        _appendLines(oldLines.slice(oldIndex), "-", pc.red)
+        _appendLines(newLines.slice(newIndex), "+", pc.green)
         process.stdout.write(output.join(""))
     }
 
-    private _parseArgs(): [input: string, output: string, diff: boolean] {
+    private _parseArgs(): {input: string; output: string; showDiff: boolean} {
         const {positionals, values} = parseArgs({
             args: process.argv.slice(2),
             allowPositionals: true,
@@ -152,11 +146,11 @@ export class Application {
             console.error(usage)
             process.exit(1)
         }
-        return [
+        return {
             input,
-            output ?? input.replace(/\.sb3$/, "") + ".pk.sb3",
-            values.diff === true,
-        ]
+            output: output ?? input.replace(/\.sb3$/, "") + ".pk.sb3",
+            showDiff: values.diff === true,
+        }
     }
 }
 
