@@ -5,6 +5,7 @@ import {parseArgs} from "node:util"
 import JSZip from "jszip"
 import pc from "picocolors"
 
+import {AsciiIdentifierGenerator} from "./packers/ascii-identifier-generator.ts"
 import {type PackerOptions, packers} from "./packers/index.ts"
 import {sb3Validator} from "./sb3-validator.ts"
 import type {Sb3Project} from "./sb3.ts"
@@ -31,7 +32,11 @@ export class Application {
             process.exit(1)
         }
         const project = JSON.parse(await projectJson.async("string"))
-        this._packProject(project, showDiff, {ascii})
+        const options: PackerOptions = {}
+        if (ascii) {
+            options.identifierGenerator = AsciiIdentifierGenerator
+        }
+        this._packProject(project, showDiff, options)
 
         const json = JSON.stringify(project)
         const errors = sb3Validator.validate(project, json)
