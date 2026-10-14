@@ -274,8 +274,8 @@ export class IdentifiersPacker extends Packer {
             bucket.push(identifier)
             frequencies[count] = bucket
         }
-        const generator = new IdentifierGenerator()
-        const procedureGenerator = new IdentifierGenerator()
+        const generator = new IdentifierGenerator(this._options.ascii)
+        const procedureGenerator = new IdentifierGenerator(this._options.ascii)
         for (let count = frequencies.length - 1; count >= 0; count--) {
             for (const identifier of frequencies[count] ?? []) {
                 const value = this._generateIdentifier(

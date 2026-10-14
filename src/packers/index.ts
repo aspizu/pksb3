@@ -5,7 +5,7 @@ import {ShadowsPacker} from "./shadows-packer.ts"
 import {SpritePacker} from "./sprite-packer.ts"
 import {VariablesPacker} from "./variables-packer.ts"
 
-export {Packer} from "./packer.ts"
+export {Packer, type PackerOptions} from "./packer.ts"
 export {
     MetadataPacker,
     SpritePacker,

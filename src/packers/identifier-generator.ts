@@ -36,9 +36,20 @@ const CHARACTER_RANGES = [
     [6, 0xd800, 0xe000],
 ] as const
 
+const SOUP =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#%()*+,-./:;=?@[]^_`{|}~"
+
 export class IdentifierGenerator {
     private _size = 1
-    private _identifiers = this._generate(this._size)
+    private _identifiers: Generator<string, void>
+
+    constructor(ascii = false) {
+        if (ascii) {
+            this._identifiers = this._generateAscii()
+        } else {
+            this._identifiers = this._generate(this._size)
+        }
+    }
 
     generate(): string {
         for (;;) {
@@ -57,6 +68,18 @@ export class IdentifierGenerator {
             )
                 continue
             return id
+        }
+    }
+
+    private *_generateAscii(): Generator<string, void> {
+        for (let index = 0; ; index++) {
+            let i = index
+            let str = ""
+            while (i >= 0) {
+                str = SOUP[i % SOUP.length] + str
+                i = Math.floor(i / SOUP.length) - 1
+            }
+            yield str
         }
     }
 

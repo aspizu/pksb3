@@ -29,3 +29,9 @@ It prints the compression ratio achieved and how the result compares with 4, 8, 
 ```sh
 pnpm pksb3 --diff project.sb3
 ```
+
+Use ASCII identifiers instead of the default byte-optimized identifiers:
+
+```sh
+pnpm pksb3 --ascii project.sb3
+```
