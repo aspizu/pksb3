@@ -13,15 +13,22 @@ const {default: diffSequences} = createRequire(import.meta.url)(
     "@jest/diff-sequences",
 ) as typeof import("@jest/diff-sequences")
 
-const usage = `usage: pksb3 [--diff] [--compression-level 0-9] path/to/input.sb3 [path/to/output.sb3]
+const budgets = new Map<string, number>(
+    [2, 4, 8, 16, 32, 64].map((size) => [`${size}kb`, size * 1024]),
+)
+const budgetOptions = [...budgets.keys()].join(", ")
+const byteFormatter = new Intl.NumberFormat("en-US")
+
+const usage = `usage: pksb3 [--diff] [--compression-level 0-9] [--budget 4kb] path/to/input.sb3 [path/to/output.sb3]
 
 output is optional, default to <input_file_name>.pk.sb3
 --diff prints the project.json diff
---compression-level sets ZIP compression from 0 (none) to 9 (maximum, default)`
+--compression-level sets ZIP compression from 0 (none) to 9 (maximum, default)
+--budget compares the output with ${budgetOptions} (1kb = 1024 bytes)`
 
 export class Application {
     async run(): Promise<void> {
-        const {input, output, showDiff, compressionLevel} = this._parseArgs()
+        const {input, output, showDiff, compressionLevel, budget} = this._parseArgs()
         const inputBuffer = await readFile(input)
         const zip = await JSZip.loadAsync(inputBuffer)
         const projectJson = zip.file("project.json")
@@ -45,42 +52,43 @@ export class Application {
             if (entry.dir || path === "project.json") continue
             out.file(path, await entry.async("nodebuffer"))
         }
-        const inputBytes = inputBuffer.byteLength
         let compression: "STORE" | "DEFLATE" = "DEFLATE"
         if (compressionLevel === 0) {
             compression = "STORE"
         }
-        const outputBytes = await out.generateAsync({
+        const outputBuffer = await out.generateAsync({
             type: "nodebuffer",
             compression,
             compressionOptions: {level: compressionLevel},
         })
-        await writeFile(output, outputBytes)
-        const ratio = (outputBytes.byteLength / inputBytes) * 100
-        console.log(
-            `${inputBytes} bytes -> ${outputBytes.byteLength} bytes (${ratio.toFixed(2)}%)`,
-        )
-        const size = outputBytes.byteLength
-        const budgets: [budget: number, label: string][] = [
-            [4096, "4k"],
-            [8192, "8k"],
-            [16384, "16k"],
-            [32768, "32k"],
-            [65536, "64k"],
-        ]
-        const next = budgets.find(([budget]) => size <= budget)
-        const prev = budgets.findLast(([budget]) => size > budget)
-        if (next !== undefined) {
-            const remaining = next[0] - size
-            console.log(
-                `(${next[1]}) ${remaining} bytes (${((remaining / next[0]) * 100).toFixed(2)}%) remaining`,
-            )
+        await writeFile(output, outputBuffer)
+        this._printSummary(inputBuffer.byteLength, outputBuffer.byteLength, budget)
+    }
+
+    private _printSummary(
+        inputBytes: number,
+        outputBytes: number,
+        budget: number | undefined,
+    ): void {
+        const saved = ((inputBytes - outputBytes) / inputBytes) * 100
+        let savedColor = pc.green
+        if (outputBytes > inputBytes) {
+            savedColor = pc.red
         }
-        if (prev !== undefined) {
-            const over = size - prev[0]
+        const input = byteFormatter.format(inputBytes)
+        const output = byteFormatter.format(outputBytes)
+        console.log(`${input}B -> ${output}B (${savedColor(`${saved.toFixed(2)}%`)})`)
+        if (budget === undefined) return
+        const label = `${budget / 1024}kB`
+        const remaining = budget - outputBytes
+        if (remaining === 0) {
+            console.log(pc.green(`=${label} Perfect!`))
+        } else if (remaining > 0) {
             console.log(
-                `(${prev[1]}) ${over} bytes (${((over / prev[0]) * 100).toFixed(2)}%) over`,
+                pc.green(`<${label} (${byteFormatter.format(remaining)}B left)`),
             )
+        } else {
+            console.log(pc.red(`>${label} (${byteFormatter.format(-remaining)}B over)`))
         }
     }
 
@@ -145,6 +153,7 @@ export class Application {
         output: string
         showDiff: boolean
         compressionLevel: number
+        budget: number | undefined
     } {
         const {positionals, values} = parseArgs({
             args: process.argv.slice(2),
@@ -152,6 +161,7 @@ export class Application {
             options: {
                 diff: {type: "boolean"},
                 "compression-level": {type: "string"},
+                budget: {type: "string"},
             },
         })
         const [input, output] = positionals
@@ -164,11 +174,20 @@ export class Application {
             console.error("--compression-level must be an integer from 0 to 9")
             process.exit(1)
         }
+        let budget: number | undefined
+        if (values.budget !== undefined) {
+            budget = budgets.get(values.budget.toLowerCase())
+            if (budget === undefined) {
+                console.error(`--budget must be one of: ${budgetOptions}`)
+                process.exit(1)
+            }
+        }
         return {
             input,
             output: output ?? input.replace(/\.sb3$/, "") + ".pk.sb3",
             showDiff: values.diff === true,
             compressionLevel: Number(compressionLevel),
+            budget,
         }
     }
 }
