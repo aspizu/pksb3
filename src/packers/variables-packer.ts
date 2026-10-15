@@ -3,18 +3,32 @@ import {Packer} from "./packer.ts"
 
 export class VariablesPacker extends Packer {
     override pack(): void {
-        const monitored = this._collectMonitoredIds()
-        const used = this._collectUsedIds(monitored)
+        this._removeUnusedDefinitions()
+        this._removeDefaultDefinitions()
+    }
+
+    private _removeUnusedDefinitions(): void {
+        const used = this._collectUsedIds()
         for (const target of this._project.targets) {
             for (const key of ["variables", "lists"] as const) {
                 const definitions = target[key] ?? {}
+                for (const id of Object.keys(definitions)) {
+                    if (!used.has(id)) {
+                        delete definitions[id]
+                    }
+                }
+            }
+        }
+    }
+
+    private _removeDefaultDefinitions(): void {
+        const monitored = this._collectMonitoredIds()
+        for (const target of this._project.targets) {
+            if (target.isStage) continue
+            for (const key of ["variables", "lists"] as const) {
+                const definitions = target[key] ?? {}
                 for (const [id, definition] of Object.entries(definitions)) {
-                    if (
-                        !used.has(id) ||
-                        (!target.isStage &&
-                            !monitored.has(id) &&
-                            this._hasDefaultValue(definition))
-                    ) {
+                    if (!monitored.has(id) && this._hasDefaultValue(definition)) {
                         delete definitions[id]
                     }
                 }
@@ -30,8 +44,8 @@ export class VariablesPacker extends Packer {
         return value === 0 || (Array.isArray(value) && value.length === 0)
     }
 
-    private _collectUsedIds(monitored: Set<string>): Set<string> {
-        const ids = new Set(monitored)
+    private _collectUsedIds(): Set<string> {
+        const ids = this._collectMonitoredIds()
         for (const target of this._project.targets) {
             for (const block of Object.values(target.blocks)) {
                 if (Array.isArray(block)) {
