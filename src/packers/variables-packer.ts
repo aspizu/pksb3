@@ -1,8 +1,13 @@
-import type {Sb3Block} from "../sb3.ts"
+import type {Sb3Block, Sb3List, Sb3Variable} from "../sb3.ts"
 import {Packer} from "./packer.ts"
 
 export class VariablesPacker extends Packer {
     override pack(): void {
+        this._removeUnusedDefinitions()
+        this._removeDefaultDefinitions()
+    }
+
+    private _removeUnusedDefinitions(): void {
         const used = this._collectUsedIds()
         for (const target of this._project.targets) {
             for (const key of ["variables", "lists"] as const) {
@@ -16,8 +21,31 @@ export class VariablesPacker extends Packer {
         }
     }
 
+    private _removeDefaultDefinitions(): void {
+        const monitored = this._collectMonitoredIds()
+        for (const target of this._project.targets) {
+            if (target.isStage) continue
+            for (const key of ["variables", "lists"] as const) {
+                const definitions = target[key] ?? {}
+                for (const [id, definition] of Object.entries(definitions)) {
+                    if (!monitored.has(id) && this._hasDefaultValue(definition)) {
+                        delete definitions[id]
+                    }
+                }
+            }
+        }
+    }
+
+    private _hasDefaultValue(definition: Sb3Variable | Sb3List): boolean {
+        if (definition[2] === true) {
+            return false
+        }
+        const value = definition[1]
+        return value === 0 || (Array.isArray(value) && value.length === 0)
+    }
+
     private _collectUsedIds(): Set<string> {
-        const ids = new Set<string>()
+        const ids = this._collectMonitoredIds()
         for (const target of this._project.targets) {
             for (const block of Object.values(target.blocks)) {
                 if (Array.isArray(block)) {
@@ -27,6 +55,11 @@ export class VariablesPacker extends Packer {
                 this._collectBlockReferences(block, ids)
             }
         }
+        return ids
+    }
+
+    private _collectMonitoredIds(): Set<string> {
+        const ids = new Set<string>()
         for (const monitor of this._project.monitors ?? []) {
             if (
                 monitor.opcode === "data_variable" ||
