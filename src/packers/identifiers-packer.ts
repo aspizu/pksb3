@@ -6,7 +6,7 @@ import type {
     Sb3Target,
     Sb3TopLevelPrimitive,
 } from "../sb3.ts"
-import type {IdentifierGenerator} from "./identifier-generator.ts"
+import {IdentifierGenerator} from "./identifier-generator.ts"
 import {
     type DataDictionaryReference,
     type DictionaryReference,
@@ -16,7 +16,6 @@ import {
     renameReference,
 } from "./identifier-reference.ts"
 import {Packer} from "./packer.ts"
-import {UnicodeIdentifierGenerator} from "./unicode-identifier-generator.ts"
 
 const IdentifierType = $enum("Block", "Variable", "List", "Argument", "Procedure")
 type IdentifierType = $enum<typeof IdentifierType>
@@ -275,10 +274,8 @@ export class IdentifiersPacker extends Packer {
             bucket.push(identifier)
             frequencies[count] = bucket
         }
-        const Generator =
-            this._options.identifierGenerator ?? UnicodeIdentifierGenerator
-        const generator = new Generator()
-        const procedureGenerator = new Generator()
+        const generator = new IdentifierGenerator()
+        const procedureGenerator = new IdentifierGenerator()
         for (let count = frequencies.length - 1; count >= 0; count--) {
             for (const identifier of frequencies[count] ?? []) {
                 const value = this._generateIdentifier(

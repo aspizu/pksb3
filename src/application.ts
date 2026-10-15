@@ -5,8 +5,7 @@ import {parseArgs} from "node:util"
 import JSZip from "jszip"
 import pc from "picocolors"
 
-import {AsciiIdentifierGenerator} from "./packers/ascii-identifier-generator.ts"
-import {type PackerOptions, packers} from "./packers/index.ts"
+import {packers} from "./packers/index.ts"
 import {sb3Validator} from "./sb3-validator.ts"
 import type {Sb3Project} from "./sb3.ts"
 
@@ -14,16 +13,15 @@ const {default: diffSequences} = createRequire(import.meta.url)(
     "@jest/diff-sequences",
 ) as typeof import("@jest/diff-sequences")
 
-const usage = `usage: pksb3 [--diff] [--ascii] [--compression-level 0-9] path/to/input.sb3 [path/to/output.sb3]
+const usage = `usage: pksb3 [--diff] [--compression-level 0-9] path/to/input.sb3 [path/to/output.sb3]
 
 output is optional, default to <input_file_name>.pk.sb3
 --diff prints the project.json diff
---ascii uses ASCII identifiers
 --compression-level sets ZIP compression from 0 (none) to 9 (maximum, default)`
 
 export class Application {
     async run(): Promise<void> {
-        const {input, output, showDiff, compressionLevel, ascii} = this._parseArgs()
+        const {input, output, showDiff, compressionLevel} = this._parseArgs()
         const inputBuffer = await readFile(input)
         const zip = await JSZip.loadAsync(inputBuffer)
         const projectJson = zip.file("project.json")
@@ -32,11 +30,7 @@ export class Application {
             process.exit(1)
         }
         const project = JSON.parse(await projectJson.async("string"))
-        const options: PackerOptions = {}
-        if (ascii) {
-            options.identifierGenerator = AsciiIdentifierGenerator
-        }
-        this._packProject(project, showDiff, options)
+        this._packProject(project, showDiff)
 
         const json = JSON.stringify(project)
         const errors = sb3Validator.validate(project, json)
@@ -90,17 +84,13 @@ export class Application {
         }
     }
 
-    private _packProject(
-        project: Sb3Project,
-        showDiff: boolean,
-        options: PackerOptions,
-    ): void {
+    private _packProject(project: Sb3Project, showDiff: boolean): void {
         let before = ""
         if (showDiff) {
             before = JSON.stringify(project, null, 2)
         }
         for (const Packer of packers) {
-            new Packer(project, options).pack()
+            new Packer(project).pack()
         }
         if (showDiff) {
             this._printDiff(before, JSON.stringify(project, null, 2))
@@ -155,14 +145,12 @@ export class Application {
         output: string
         showDiff: boolean
         compressionLevel: number
-        ascii: boolean
     } {
         const {positionals, values} = parseArgs({
             args: process.argv.slice(2),
             allowPositionals: true,
             options: {
                 diff: {type: "boolean"},
-                ascii: {type: "boolean"},
                 "compression-level": {type: "string"},
             },
         })
@@ -181,7 +169,6 @@ export class Application {
             output: output ?? input.replace(/\.sb3$/, "") + ".pk.sb3",
             showDiff: values.diff === true,
             compressionLevel: Number(compressionLevel),
-            ascii: values.ascii === true,
         }
     }
 }
