@@ -1,0 +1,296 @@
+--- input.json
++++ output.json
+@@ -1,74 +1,42 @@
+ {
+-    "meta": {
+-        "semver": "3.0.0",
+-        "vm": "0.2.0",
+-        "agent": "Scratch fixture",
+-        "origin": "https://scratch.mit.edu"
+-    },
++    "meta": {"semver": "3.0.0"},
+     "targets": [
+         {
+             "isStage": true,
+             "name": "Stage",
+-            "variables": {
+-                "visible-variable": ["score", 7],
+-                "shown-variable": ["later score", 9],
+-                "slider-variable": ["speed", 5],
+-                "hidden-variable": ["hidden score", 7]
+-            },
+-            "lists": {
+-                "shown-list": ["items", ["apple"]],
+-                "visible-list": ["queue", []],
+-                "hidden-list": ["hidden items", ["apple"]]
+-            },
++            "variables": {"e": ["e", 7], "a": ["a", 9], "f": ["f", 5], "g": ["g", 7]},
++            "lists": {"b": ["b", ["apple"]], "h": ["h", []], "i": ["i", ["apple"]]},
+             "blocks": {
+-                "stage-flag": {
++                "n": {
+                     "opcode": "event_whenflagclicked",
+-                    "next": "show-variable",
++                    "next": "j",
+                     "parent": null,
+-                    "inputs": {},
+-                    "fields": {},
+-                    "shadow": false,
+-                    "topLevel": true,
+-                    "x": 0,
+-                    "y": 0
++                    "topLevel": true
+                 },
+-                "show-variable": {
++                "j": {
+                     "opcode": "data_showvariable",
+-                    "next": "show-list",
+-                    "parent": "stage-flag",
+-                    "inputs": {},
+-                    "fields": {"VARIABLE": ["later score", "shown-variable"]},
+-                    "shadow": false,
+-                    "topLevel": false
++                    "next": "k",
++                    "parent": "n",
++                    "fields": {"VARIABLE": ["a", "a"]}
+                 },
+-                "show-list": {
++                "k": {
+                     "opcode": "data_showlist",
+-                    "next": "hide-variable",
+-                    "parent": "show-variable",
+-                    "inputs": {},
+-                    "fields": {"LIST": ["items", "shown-list"]},
+-                    "shadow": false,
+-                    "topLevel": false
++                    "next": "l",
++                    "parent": "j",
++                    "fields": {"LIST": ["b", "b"]}
+                 },
+-                "hide-variable": {
++                "l": {
+                     "opcode": "data_hidevariable",
+-                    "next": "hide-list",
+-                    "parent": "show-list",
+-                    "inputs": {},
+-                    "fields": {"VARIABLE": ["hidden score", "hidden-variable"]},
+-                    "shadow": false,
+-                    "topLevel": false
++                    "next": "o",
++                    "parent": "k",
++                    "fields": {"VARIABLE": ["g", "g"]}
+                 },
+-                "hide-list": {
++                "o": {
+                     "opcode": "data_hidelist",
+                     "next": null,
+-                    "parent": "hide-variable",
+-                    "inputs": {},
+-                    "fields": {"LIST": ["hidden items", "hidden-list"]},
+-                    "shadow": false,
+-                    "topLevel": false
+-                },
+-                "variable-reporter": [12, "score", "visible-variable", 0, 100]
++                    "parent": "l",
++                    "fields": {"LIST": ["i", "i"]}
++                }
+             },
+             "costumes": [
+                 {
+@@ -82,37 +50,26 @@
+         {
+             "isStage": false,
+             "name": "Sprite",
+-            "variables": {"local-variable": ["local score", 11]},
+-            "lists": {"local-list": ["local items", []]},
++            "variables": {"c": ["c", 11]},
++            "lists": {"d": ["d", []]},
+             "blocks": {
+-                "sprite-flag": {
++                "p": {
+                     "opcode": "event_whenflagclicked",
+-                    "next": "show-local-variable",
++                    "next": "m",
+                     "parent": null,
+-                    "inputs": {},
+-                    "fields": {},
+-                    "shadow": false,
+-                    "topLevel": true,
+-                    "x": 0,
+-                    "y": 0
++                    "topLevel": true
+                 },
+-                "show-local-variable": {
++                "m": {
+                     "opcode": "data_showvariable",
+-                    "next": "show-local-list",
+-                    "parent": "sprite-flag",
+-                    "inputs": {},
+-                    "fields": {"VARIABLE": ["local score", "local-variable"]},
+-                    "shadow": false,
+-                    "topLevel": false
++                    "next": "q",
++                    "parent": "p",
++                    "fields": {"VARIABLE": ["c", "c"]}
+                 },
+-                "show-local-list": {
++                "q": {
+                     "opcode": "data_showlist",
+                     "next": null,
+-                    "parent": "show-local-variable",
+-                    "inputs": {},
+-                    "fields": {"LIST": ["local items", "local-list"]},
+-                    "shadow": false,
+-                    "topLevel": false
++                    "parent": "m",
++                    "fields": {"LIST": ["d", "d"]}
+                 }
+             },
+             "costumes": [
+@@ -127,38 +84,27 @@
+     ],
+     "monitors": [
+         {
+-            "id": "visible-variable",
+-            "mode": "default",
++            "id": "e",
+             "opcode": "data_variable",
+-            "params": {"VARIABLE": "score"},
+-            "spriteName": null,
++            "params": {"VARIABLE": "e"},
+             "value": 7,
+-            "width": 0,
+-            "height": 0,
+-            "x": null,
+-            "y": null,
+-            "visible": true,
+-            "sliderMin": 0,
+-            "sliderMax": 100,
+-            "isDiscrete": true
++            "visible": true
+         },
+         {
+-            "id": "shown-variable",
++            "id": "a",
+             "mode": "large",
+             "opcode": "data_variable",
+-            "params": {"VARIABLE": "later score"},
+-            "spriteName": null,
++            "params": {"VARIABLE": "a"},
+             "value": 9,
+             "x": 0,
+             "y": 0,
+             "visible": false
+         },
+         {
+-            "id": "shown-list",
++            "id": "b",
+             "mode": "list",
+             "opcode": "data_listcontents",
+-            "params": {"LIST": "items"},
+-            "spriteName": null,
++            "params": {"LIST": "b"},
+             "value": ["apple"],
+             "width": 160,
+             "height": 120,
+@@ -167,19 +113,18 @@
+             "visible": false
+         },
+         {
+-            "id": "local-variable",
+-            "mode": "default",
++            "id": "c",
+             "opcode": "data_variable",
+-            "params": {"VARIABLE": "local score"},
++            "params": {"VARIABLE": "c"},
+             "spriteName": "Sprite",
+             "value": 11,
+             "visible": false
+         },
+         {
+-            "id": "local-list",
++            "id": "d",
+             "mode": "list",
+             "opcode": "data_listcontents",
+-            "params": {"LIST": "local items"},
++            "params": {"LIST": "d"},
+             "spriteName": "Sprite",
+             "value": [],
+             "width": 140,
+@@ -189,14 +134,11 @@
+             "visible": false
+         },
+         {
+-            "id": "slider-variable",
++            "id": "f",
+             "mode": "slider",
+             "opcode": "data_variable",
+-            "params": {"VARIABLE": "speed"},
+-            "spriteName": null,
++            "params": {"VARIABLE": "f"},
+             "value": 5,
+-            "width": 0,
+-            "height": 0,
+             "x": 120,
+             "y": 80,
+             "visible": true,
+@@ -205,11 +147,10 @@
+             "isDiscrete": false
+         },
+         {
+-            "id": "visible-list",
++            "id": "h",
+             "mode": "list",
+             "opcode": "data_listcontents",
+-            "params": {"LIST": "queue"},
+-            "spriteName": null,
++            "params": {"LIST": "h"},
+             "value": [],
+             "width": 100,
+             "height": 100,
+@@ -219,43 +160,10 @@
+         },
+         {
+             "id": "Sprite_xposition",
+-            "mode": "default",
+             "opcode": "motion_xposition",
+             "params": {},
+             "spriteName": "Sprite",
+-            "value": 0,
+-            "width": 0,
+-            "height": 0,
+-            "x": null,
+-            "y": null
+-        },
+-        {
+-            "id": "hidden-variable",
+-            "mode": "default",
+-            "opcode": "data_variable",
+-            "params": {"VARIABLE": "hidden score"},
+-            "spriteName": null,
+-            "value": 7,
+-            "visible": false
+-        },
+-        {
+-            "id": "hidden-list",
+-            "mode": "list",
+-            "opcode": "data_listcontents",
+-            "params": {"LIST": "hidden items"},
+-            "spriteName": null,
+-            "value": ["apple"],
+-            "visible": false
+-        },
+-        {
+-            "id": "sensing_timer",
+-            "mode": "default",
+-            "opcode": "sensing_timer",
+-            "params": {},
+-            "spriteName": null,
+-            "value": 0,
+-            "visible": false
++            "value": 0
+         }
+-    ],
+-    "extensions": ["pen", "music"]
++    ]
+ }
