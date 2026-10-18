@@ -1,0 +1,261 @@
+{
+    "meta": {
+        "semver": "3.0.0",
+        "vm": "0.2.0",
+        "agent": "Scratch fixture",
+        "origin": "https://scratch.mit.edu"
+    },
+    "targets": [
+        {
+            "isStage": true,
+            "name": "Stage",
+            "variables": {
+                "visible-variable": ["score", 7],
+                "shown-variable": ["later score", 9],
+                "slider-variable": ["speed", 5],
+                "hidden-variable": ["hidden score", 7]
+            },
+            "lists": {
+                "shown-list": ["items", ["apple"]],
+                "visible-list": ["queue", []],
+                "hidden-list": ["hidden items", ["apple"]]
+            },
+            "blocks": {
+                "stage-flag": {
+                    "opcode": "event_whenflagclicked",
+                    "next": "show-variable",
+                    "parent": null,
+                    "inputs": {},
+                    "fields": {},
+                    "shadow": false,
+                    "topLevel": true,
+                    "x": 0,
+                    "y": 0
+                },
+                "show-variable": {
+                    "opcode": "data_showvariable",
+                    "next": "show-list",
+                    "parent": "stage-flag",
+                    "inputs": {},
+                    "fields": {"VARIABLE": ["later score", "shown-variable"]},
+                    "shadow": false,
+                    "topLevel": false
+                },
+                "show-list": {
+                    "opcode": "data_showlist",
+                    "next": "hide-variable",
+                    "parent": "show-variable",
+                    "inputs": {},
+                    "fields": {"LIST": ["items", "shown-list"]},
+                    "shadow": false,
+                    "topLevel": false
+                },
+                "hide-variable": {
+                    "opcode": "data_hidevariable",
+                    "next": "hide-list",
+                    "parent": "show-list",
+                    "inputs": {},
+                    "fields": {"VARIABLE": ["hidden score", "hidden-variable"]},
+                    "shadow": false,
+                    "topLevel": false
+                },
+                "hide-list": {
+                    "opcode": "data_hidelist",
+                    "next": null,
+                    "parent": "hide-variable",
+                    "inputs": {},
+                    "fields": {"LIST": ["hidden items", "hidden-list"]},
+                    "shadow": false,
+                    "topLevel": false
+                },
+                "variable-reporter": [12, "score", "visible-variable", 0, 100]
+            },
+            "costumes": [
+                {
+                    "assetId": "19fc47764555c248fbb3cca5465be39b",
+                    "dataFormat": "svg",
+                    "name": "blank"
+                }
+            ],
+            "sounds": []
+        },
+        {
+            "isStage": false,
+            "name": "Sprite",
+            "variables": {"local-variable": ["local score", 11]},
+            "lists": {"local-list": ["local items", []]},
+            "blocks": {
+                "sprite-flag": {
+                    "opcode": "event_whenflagclicked",
+                    "next": "show-local-variable",
+                    "parent": null,
+                    "inputs": {},
+                    "fields": {},
+                    "shadow": false,
+                    "topLevel": true,
+                    "x": 0,
+                    "y": 0
+                },
+                "show-local-variable": {
+                    "opcode": "data_showvariable",
+                    "next": "show-local-list",
+                    "parent": "sprite-flag",
+                    "inputs": {},
+                    "fields": {"VARIABLE": ["local score", "local-variable"]},
+                    "shadow": false,
+                    "topLevel": false
+                },
+                "show-local-list": {
+                    "opcode": "data_showlist",
+                    "next": null,
+                    "parent": "show-local-variable",
+                    "inputs": {},
+                    "fields": {"LIST": ["local items", "local-list"]},
+                    "shadow": false,
+                    "topLevel": false
+                }
+            },
+            "costumes": [
+                {
+                    "assetId": "19fc47764555c248fbb3cca5465be39b",
+                    "dataFormat": "svg",
+                    "name": "blank"
+                }
+            ],
+            "sounds": []
+        }
+    ],
+    "monitors": [
+        {
+            "id": "visible-variable",
+            "mode": "default",
+            "opcode": "data_variable",
+            "params": {"VARIABLE": "score"},
+            "spriteName": null,
+            "value": 7,
+            "width": 0,
+            "height": 0,
+            "x": null,
+            "y": null,
+            "visible": true,
+            "sliderMin": 0,
+            "sliderMax": 100,
+            "isDiscrete": true
+        },
+        {
+            "id": "shown-variable",
+            "mode": "large",
+            "opcode": "data_variable",
+            "params": {"VARIABLE": "later score"},
+            "spriteName": null,
+            "value": 9,
+            "x": 0,
+            "y": 0,
+            "visible": false
+        },
+        {
+            "id": "shown-list",
+            "mode": "list",
+            "opcode": "data_listcontents",
+            "params": {"LIST": "items"},
+            "spriteName": null,
+            "value": ["apple"],
+            "width": 160,
+            "height": 120,
+            "x": 10,
+            "y": 20,
+            "visible": false
+        },
+        {
+            "id": "local-variable",
+            "mode": "default",
+            "opcode": "data_variable",
+            "params": {"VARIABLE": "local score"},
+            "spriteName": "Sprite",
+            "value": 11,
+            "visible": false
+        },
+        {
+            "id": "local-list",
+            "mode": "list",
+            "opcode": "data_listcontents",
+            "params": {"LIST": "local items"},
+            "spriteName": "Sprite",
+            "value": [],
+            "width": 140,
+            "height": 90,
+            "x": 240,
+            "y": 20,
+            "visible": false
+        },
+        {
+            "id": "slider-variable",
+            "mode": "slider",
+            "opcode": "data_variable",
+            "params": {"VARIABLE": "speed"},
+            "spriteName": null,
+            "value": 5,
+            "width": 0,
+            "height": 0,
+            "x": 120,
+            "y": 80,
+            "visible": true,
+            "sliderMin": -10,
+            "sliderMax": 10,
+            "isDiscrete": false
+        },
+        {
+            "id": "visible-list",
+            "mode": "list",
+            "opcode": "data_listcontents",
+            "params": {"LIST": "queue"},
+            "spriteName": null,
+            "value": [],
+            "width": 100,
+            "height": 100,
+            "x": 0,
+            "y": 0,
+            "visible": true
+        },
+        {
+            "id": "Sprite_xposition",
+            "mode": "default",
+            "opcode": "motion_xposition",
+            "params": {},
+            "spriteName": "Sprite",
+            "value": 0,
+            "width": 0,
+            "height": 0,
+            "x": null,
+            "y": null
+        },
+        {
+            "id": "hidden-variable",
+            "mode": "default",
+            "opcode": "data_variable",
+            "params": {"VARIABLE": "hidden score"},
+            "spriteName": null,
+            "value": 7,
+            "visible": false
+        },
+        {
+            "id": "hidden-list",
+            "mode": "list",
+            "opcode": "data_listcontents",
+            "params": {"LIST": "hidden items"},
+            "spriteName": null,
+            "value": ["apple"],
+            "visible": false
+        },
+        {
+            "id": "sensing_timer",
+            "mode": "default",
+            "opcode": "sensing_timer",
+            "params": {},
+            "spriteName": null,
+            "value": 0,
+            "visible": false
+        }
+    ],
+    "extensions": ["pen", "music"]
+}

@@ -14,6 +14,17 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
+    test:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@v7
+            - uses: pnpm/setup@v3.1.1
+              with:
+                  runtime: node@26
+                  cache: true
+            - run: pnpm test
+
     formatting:
         runs-on: ubuntu-latest
         timeout-minutes: 10
